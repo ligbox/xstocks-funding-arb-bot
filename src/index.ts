@@ -14,7 +14,8 @@ class FundingArbBot {
   constructor(updateIntervalMinutes: number = 5, minSpreadThreshold: number = 0.0001) {
     this.exchangeClient = new ExchangeClient();
     this.calculator = new ArbitrageCalculator(minSpreadThreshold);
-    this.webServer = new WebServer(3001);
+    const port = parseInt(process.env.PORT || '3001', 10);
+    this.webServer = new WebServer(port);
     this.updateInterval = updateIntervalMinutes * 60 * 1000; // Convert to milliseconds
   }
 
