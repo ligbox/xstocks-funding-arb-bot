@@ -4,6 +4,8 @@ import { FundingRate, ExchangeName, XStock, HistoryEntry } from './types';
 export class ExchangeClient {
   private exchanges: Map<ExchangeName, any>;
   private symbolCache: Map<string, string | null> = new Map();
+  private fundingRateCache: Map<string, FundingRate> = new Map();
+  private readonly CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
   constructor() {
     this.exchanges = new Map();
@@ -132,25 +134,48 @@ export class ExchangeClient {
     }
   }
 
+  private async retryWithBackoff<T>(
+    fn: () => Promise<T>,
+    maxRetries: number = 3,
+    baseDelay: number = 1000
+  ): Promise<T> {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await fn();
+      } catch (error) {
+        if (i === maxRetries - 1) throw error;
+        const delay = baseDelay * Math.pow(2, i);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    throw new Error('Max retries reached');
+  }
+
   async getFundingRate(exchange: ExchangeName, stock: XStock): Promise<FundingRate | null> {
+    const cacheKey = `${exchange}:${stock}`;
+
     try {
       const exchangeInstance = this.exchanges.get(exchange);
       if (!exchangeInstance) {
-        return null;
+        return this.getCachedRate(cacheKey);
       }
 
       // Check if exchange supports funding rates
       if (!exchangeInstance.has['fetchFundingRate']) {
-        return null;
+        return this.getCachedRate(cacheKey);
       }
 
       const symbol = await this.findSymbol(exchange, stock);
       if (!symbol) {
-        return null;
+        return this.getCachedRate(cacheKey);
       }
 
-      // Fetch funding rate
-      const fundingRate = await exchangeInstance.fetchFundingRate(symbol);
+      // Fetch funding rate with retry logic
+      const fundingRate: any = await this.retryWithBackoff(
+        () => exchangeInstance.fetchFundingRate(symbol),
+        2,
+        500
+      );
 
       // Fetch funding rate history for cumulative calculations
       const history7d = await this.getFundingRateHistory(exchange, stock, 7);
@@ -164,7 +189,7 @@ export class ExchangeClient {
         ? history30d.reduce((sum, entry) => sum + entry.fundingRate, 0)
         : undefined;
 
-      return {
+      const result: FundingRate = {
         exchange,
         symbol: stock,
         fundingRate: fundingRate.fundingRate || 0,
@@ -175,13 +200,32 @@ export class ExchangeClient {
         history7d,
         history30d
       };
+
+      // Cache the successful result
+      this.fundingRateCache.set(cacheKey, result);
+
+      return result;
     } catch (error: any) {
       // Only log non-silent errors
       if (!error.message.includes('does not support')) {
         console.error(`Error fetching funding rate for ${stock} on ${exchange}:`, error.message);
       }
-      return null;
+
+      // Return cached data if available
+      return this.getCachedRate(cacheKey);
     }
+  }
+
+  private getCachedRate(cacheKey: string): FundingRate | null {
+    const cached = this.fundingRateCache.get(cacheKey);
+    if (cached) {
+      const age = Date.now() - cached.timestamp;
+      if (age < this.CACHE_TTL) {
+        console.log(`⚡ Using cached data for ${cacheKey} (${Math.round(age / 1000)}s old)`);
+        return cached;
+      }
+    }
+    return null;
   }
 
   async getAllFundingRates(stock: XStock): Promise<FundingRate[]> {

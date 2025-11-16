@@ -3,9 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XStocks Funding Rate Dashboard</title>
+    <title>XSTOCKS TERMINAL // Funding Arbitrage</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        :root {
+            --neon-cyan: #00f0ff;
+            --neon-magenta: #ff00ff;
+            --neon-yellow: #ffff00;
+            --deep-purple: #1a0033;
+            --dark-bg: #0a0014;
+            --panel-bg: rgba(26, 0, 51, 0.6);
+            --grid-color: rgba(0, 240, 255, 0.1);
+            --positive: #00ff88;
+            --negative: #ff0066;
+            --warning: #ffaa00;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,461 +29,797 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #0a0e27;
-            color: #e0e0e0;
-            padding: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--dark-bg);
+            color: var(--neon-cyan);
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated Background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                linear-gradient(135deg, var(--deep-purple) 0%, var(--dark-bg) 50%, #000033 100%);
+            z-index: -2;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                repeating-linear-gradient(0deg, transparent, transparent 2px, var(--grid-color) 2px, var(--grid-color) 4px),
+                repeating-linear-gradient(90deg, transparent, transparent 2px, var(--grid-color) 2px, var(--grid-color) 4px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+            z-index: -1;
+            opacity: 0.3;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+
+        /* Scanline effect */
+        .scanline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 9999;
+            animation: scanlineMove 8s linear infinite;
+        }
+
+        @keyframes scanlineMove {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(100vh); }
         }
 
         .container {
-            max-width: 1600px;
+            max-width: 1800px;
             margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            z-index: 1;
         }
 
+        /* Header */
         header {
-            margin-bottom: 30px;
-            border-bottom: 2px solid #1e2a47;
-            padding-bottom: 20px;
+            margin-bottom: 3rem;
+            position: relative;
+            animation: slideDown 0.8s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .title-container {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            margin-bottom: 1rem;
         }
 
         h1 {
-            color: #00d4aa;
-            font-size: 32px;
-            margin-bottom: 10px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: clamp(2rem, 5vw, 4rem);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            background: linear-gradient(135deg, var(--neon-cyan) 0%, var(--neon-magenta) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 40px rgba(0, 240, 255, 0.5);
+            position: relative;
+            animation: textGlow 3s ease-in-out infinite alternate;
         }
 
-        h2 {
-            color: #00d4aa;
-            font-size: 20px;
-            margin-bottom: 15px;
-            margin-top: 30px;
+        @keyframes textGlow {
+            from {
+                filter: drop-shadow(0 0 10px var(--neon-cyan));
+            }
+            to {
+                filter: drop-shadow(0 0 30px var(--neon-magenta));
+            }
         }
 
-        .subtitle {
-            color: #8b92a7;
-            font-size: 14px;
+        .status-badge {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.5rem 1.5rem;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid var(--neon-cyan);
+            border-radius: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
         }
 
-        .status {
-            display: inline-block;
-            padding: 6px 14px;
-            background: #1e2a47;
-            border-radius: 12px;
-            font-size: 13px;
-            margin-left: 15px;
+        .status-badge::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .status-badge.live {
+            border-color: var(--positive);
+            color: var(--positive);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
             animation: pulse 2s ease-in-out infinite;
         }
 
-        .status.live {
-            background: #00d4aa;
-            color: #0a0e27;
-            font-weight: 600;
-            animation: none;
-        }
-
         @keyframes pulse {
-            0%, 100% { opacity: 0.5; }
-            50% { opacity: 1; }
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
         }
 
-        /* Stats Cards */
+        .subtitle {
+            font-size: 0.9rem;
+            color: rgba(0, 240, 255, 0.6);
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            font-weight: 300;
+        }
+
+        /* Stats Grid */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+            animation: fadeIn 1s ease-out 0.3s both;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .stat-card {
-            background: #131729;
-            border-radius: 12px;
-            padding: 20px;
-            border: 1px solid #1e2a47;
-            transition: transform 0.2s, box-shadow 0.2s;
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 0 100%);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, transparent 50%, var(--neon-cyan) 50%);
+            opacity: 0.5;
         }
 
         .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 212, 170, 0.1);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
+            transform: translateY(-5px);
         }
 
         .stat-label {
-            font-size: 12px;
-            color: #8b92a7;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
+            letter-spacing: 0.2em;
+            color: rgba(0, 240, 255, 0.7);
+            margin-bottom: 1rem;
         }
 
         .stat-value {
-            font-size: 28px;
-            font-weight: 700;
-            color: #00d4aa;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 20px rgba(0, 240, 255, 0.8);
+            letter-spacing: 0.05em;
+        }
+
+        .stat-value.positive {
+            color: var(--positive);
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.8);
         }
 
         .stat-value.neutral {
-            color: #8b92a7;
+            color: rgba(255, 255, 255, 0.5);
+            text-shadow: none;
         }
 
-        /* Opportunities Section */
-        .opportunities-container {
-            background: #131729;
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 30px;
-            border: 2px solid #1e2a47;
+        /* Panel Section */
+        .panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            position: relative;
+            animation: fadeIn 1s ease-out 0.6s both;
         }
 
+        .panel-header {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--neon-cyan);
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid rgba(0, 240, 255, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .panel-header::before {
+            content: '//';
+            color: var(--neon-magenta);
+            font-size: 1.8rem;
+        }
+
+        /* Opportunity Cards */
         .opportunity-card {
-            background: linear-gradient(135deg, #1e2a47 0%, #131729 100%);
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 15px;
-            border: 1px solid #00d4aa;
-            transition: transform 0.2s, box-shadow 0.2s;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid transparent;
+            border-image: linear-gradient(135deg, var(--neon-cyan), var(--neon-magenta)) 1;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            transition: all 0.3s ease;
+            animation: slideIn 0.5s ease-out both;
+        }
+
+        .opportunity-card:nth-child(1) { animation-delay: 0.1s; }
+        .opportunity-card:nth-child(2) { animation-delay: 0.2s; }
+        .opportunity-card:nth-child(3) { animation-delay: 0.3s; }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
 
         .opportunity-card:hover {
+            background: rgba(0, 240, 255, 0.05);
+            box-shadow: 0 0 40px rgba(0, 240, 255, 0.2);
             transform: scale(1.02);
-            box-shadow: 0 6px 20px rgba(0, 212, 170, 0.2);
         }
 
         .opportunity-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: 1rem;
         }
 
         .opportunity-symbol {
-            font-size: 22px;
-            font-weight: 700;
-            color: #ffffff;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 900;
+            letter-spacing: 0.1em;
+            color: var(--neon-yellow);
+            text-shadow: 0 0 15px rgba(255, 255, 0, 0.6);
         }
 
         .opportunity-spread {
-            font-size: 24px;
-            font-weight: 700;
-            color: #ff4d6d;
-            padding: 8px 16px;
-            background: rgba(255, 77, 109, 0.15);
-            border-radius: 8px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--negative);
+            background: rgba(255, 0, 102, 0.1);
+            padding: 0.5rem 1.5rem;
+            border: 2px solid var(--negative);
+            text-shadow: 0 0 20px rgba(255, 0, 102, 0.8);
+            clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
         }
 
         .opportunity-strategy {
             display: flex;
             align-items: center;
-            gap: 15px;
-            font-size: 15px;
-            margin-top: 10px;
+            gap: 2rem;
+            font-size: 0.95rem;
         }
 
         .exchange-badge {
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 13px;
+            padding: 1rem 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 0.85rem;
             text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border: 2px solid;
+            position: relative;
+            transition: all 0.3s ease;
+            cursor: pointer;
         }
 
         .exchange-badge.long {
-            background: rgba(0, 212, 170, 0.2);
-            color: #00d4aa;
+            border-color: var(--positive);
+            background: rgba(0, 255, 136, 0.1);
+            color: var(--positive);
+        }
+
+        .exchange-badge.long:hover {
+            background: rgba(0, 255, 136, 0.2);
+            box-shadow: 0 0 25px rgba(0, 255, 136, 0.5);
+            transform: translateY(-3px);
         }
 
         .exchange-badge.short {
-            background: rgba(255, 77, 109, 0.2);
-            color: #ff4d6d;
+            border-color: var(--negative);
+            background: rgba(255, 0, 102, 0.1);
+            color: var(--negative);
+        }
+
+        .exchange-badge.short:hover {
+            background: rgba(255, 0, 102, 0.2);
+            box-shadow: 0 0 25px rgba(255, 0, 102, 0.5);
+            transform: translateY(-3px);
         }
 
         .arrow {
-            font-size: 24px;
-            color: #8b92a7;
+            font-size: 2rem;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.8);
+            animation: arrowPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes arrowPulse {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(10px); }
         }
 
         .no-opportunities {
             text-align: center;
-            padding: 40px;
-            color: #8b92a7;
-            font-size: 16px;
-        }
-
-        /* Table Styles */
-        .table-container {
-            background: #131729;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid #1e2a47;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-        }
-
-        thead {
-            background: #1e2a47;
-        }
-
-        th {
-            padding: 16px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 13px;
+            padding: 4rem 2rem;
+            color: rgba(0, 240, 255, 0.4);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #8b92a7;
-            border-bottom: 2px solid #0a0e27;
-        }
-
-        tbody tr {
-            border-bottom: 1px solid #1e2a47;
-            transition: background 0.2s;
-        }
-
-        tbody tr:hover {
-            background: #1a1f38;
-        }
-
-        tbody tr:last-child {
-            border-bottom: none;
-        }
-
-        td {
-            padding: 16px;
-            font-size: 14px;
-        }
-
-        .symbol {
-            font-weight: 600;
-            color: #ffffff;
-            font-size: 15px;
-        }
-
-        .symbol-link {
-            color: #00d4aa;
-            text-decoration: none;
-            transition: color 0.2s;
-            cursor: pointer;
-        }
-
-        .symbol-link:hover {
-            color: #00ffcc;
-            text-decoration: underline;
-        }
-
-        .rate {
-            font-family: 'Courier New', monospace;
-            font-weight: 600;
-            font-size: 13px;
-        }
-
-        .rate.positive {
-            color: #ff4d6d;
-        }
-
-        .rate.negative {
-            color: #00d4aa;
-        }
-
-        .rate.neutral {
-            color: #8b92a7;
-        }
-
-        .spread {
-            font-weight: 700;
-            padding: 4px 8px;
-            border-radius: 4px;
-            background: rgba(0, 212, 170, 0.1);
-            color: #00d4aa;
-        }
-
-        .spread.high {
-            background: rgba(255, 77, 109, 0.1);
-            color: #ff4d6d;
-        }
-
-        .no-data {
-            color: #4a5568;
-            font-style: italic;
+            letter-spacing: 0.2em;
         }
 
         /* Chart Container */
         .chart-container {
-            background: #131729;
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 30px;
-            border: 1px solid #1e2a47;
-            height: 350px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            min-height: 400px;
+            animation: fadeIn 1s ease-out 0.9s both;
+        }
+
+        /* Table */
+        .table-container {
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            overflow-x: auto;
+            animation: fadeIn 1s ease-out 1.2s both;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        thead {
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        th {
+            padding: 1.2rem 1rem;
+            text-align: left;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--neon-cyan);
+            border-bottom: 2px solid var(--neon-cyan);
+        }
+
+        tbody tr {
+            border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+            transition: all 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background: rgba(0, 240, 255, 0.05);
+            box-shadow: inset 0 0 20px rgba(0, 240, 255, 0.1);
+        }
+
+        td {
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 400;
+        }
+
+        .symbol {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            color: var(--neon-yellow);
+            font-size: 1rem;
+            letter-spacing: 0.1em;
+        }
+
+        .symbol-link {
+            color: var(--neon-cyan);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .symbol-link:hover {
+            color: var(--neon-magenta);
+            text-shadow: 0 0 10px var(--neon-magenta);
+        }
+
+        .rate {
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .rate.positive {
+            color: var(--negative);
+            text-shadow: 0 0 5px rgba(255, 0, 102, 0.5);
+        }
+
+        .rate.negative {
+            color: var(--positive);
+            text-shadow: 0 0 5px rgba(0, 255, 136, 0.5);
+        }
+
+        .rate.neutral {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .spread {
+            font-weight: 700;
+            padding: 0.4rem 0.8rem;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+        }
+
+        .spread.high {
+            background: rgba(255, 0, 102, 0.1);
+            border-color: var(--negative);
+            color: var(--negative);
+        }
+
+        .no-data {
+            color: rgba(255, 255, 255, 0.2);
         }
 
         /* Filters */
         .filters {
             display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
             flex-wrap: wrap;
         }
 
         .filter-group {
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 0.5rem;
         }
 
         .filter-label {
-            font-size: 12px;
-            color: #8b92a7;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.2em;
+            color: rgba(0, 240, 255, 0.7);
         }
 
         select, input {
-            background: #1e2a47;
-            color: #e0e0e0;
-            border: 1px solid #2a3654;
-            border-radius: 8px;
-            padding: 10px 15px;
-            font-size: 14px;
+            background: rgba(0, 0, 0, 0.5);
+            color: var(--neon-cyan);
+            border: 2px solid rgba(0, 240, 255, 0.3);
+            padding: 0.8rem 1.2rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
             outline: none;
-            transition: border-color 0.2s;
+            transition: all 0.3s ease;
         }
 
         select:hover, input:hover {
-            border-color: #00d4aa;
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
         }
 
         select:focus, input:focus {
-            border-color: #00d4aa;
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+        }
+
+        button {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            padding: 1rem 2rem;
+            background: transparent;
+            color: var(--neon-cyan);
+            border: 2px solid var(--neon-cyan);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: var(--neon-cyan);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.5s, height 0.5s;
+        }
+
+        button:hover::before {
+            width: 300%;
+            height: 300%;
+        }
+
+        button:hover {
+            color: var(--dark-bg);
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.6);
+        }
+
+        button span {
+            position: relative;
+            z-index: 1;
         }
 
         .last-update {
-            margin-top: 20px;
+            margin-top: 2rem;
             text-align: right;
-            color: #8b92a7;
-            font-size: 12px;
+            color: rgba(0, 240, 255, 0.5);
+            font-size: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
         }
 
         .loading {
             text-align: center;
-            padding: 60px;
-            color: #8b92a7;
-            font-size: 16px;
+            padding: 4rem;
+            color: var(--neon-cyan);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            animation: loadingPulse 1.5s ease-in-out infinite;
         }
 
-        .loading::after {
-            content: '...';
-            animation: loading 1.5s ease-in-out infinite;
+        @keyframes loadingPulse {
+            0%, 100% {
+                opacity: 0.4;
+                text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+            }
+            50% {
+                opacity: 1;
+                text-shadow: 0 0 30px rgba(0, 240, 255, 1);
+            }
         }
 
-        @keyframes loading {
-            0%, 20% { content: '.'; }
-            40% { content: '..'; }
-            60%, 100% { content: '...'; }
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .opportunity-strategy {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .panel {
+                padding: 1.5rem;
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--dark-bg);
+            border: 1px solid rgba(0, 240, 255, 0.1);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-magenta));
+            border-radius: 0;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--neon-cyan);
         }
     </style>
 </head>
 <body>
+    <div class="scanline"></div>
+
     <div class="container">
         <header>
-            <h1>
-                📊 XStocks Funding Rate Dashboard
-                <span class="status" id="status">연결 중</span>
-            </h1>
-            <p class="subtitle">실시간 펀딩 수수료 및 차익거래 기회 모니터링</p>
+            <div class="title-container">
+                <h1>XSTOCKS TERMINAL</h1>
+                <span class="status-badge" id="status">CONNECTING</span>
+            </div>
+            <p class="subtitle">FUNDING RATE ARBITRAGE MONITOR // REAL-TIME</p>
         </header>
 
         <!-- Statistics -->
-        <div class="stats-grid" id="statsGrid">
+        <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-label">총 차익거래 기회</div>
-                <div class="stat-value" id="totalOpportunities">-</div>
+                <div class="stat-label">OPPORTUNITIES</div>
+                <div class="stat-value" id="totalOpportunities">--</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">최대 스프레드</div>
-                <div class="stat-value" id="maxSpread">-</div>
+                <div class="stat-label">MAX SPREAD</div>
+                <div class="stat-value positive" id="maxSpread">--</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">평균 스프레드</div>
-                <div class="stat-value neutral" id="avgSpread">-</div>
+                <div class="stat-label">AVG SPREAD</div>
+                <div class="stat-value neutral" id="avgSpread">--</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">모니터링 토큰</div>
-                <div class="stat-value neutral" id="tokenCount">-</div>
+                <div class="stat-label">TOKENS TRACKED</div>
+                <div class="stat-value neutral" id="tokenCount">--</div>
             </div>
         </div>
 
         <!-- Arbitrage Opportunities -->
-        <div class="opportunities-container">
-            <h2>🎯 차익거래 기회</h2>
+        <div class="panel">
+            <div class="panel-header">ARBITRAGE OPPORTUNITIES</div>
             <div id="opportunities">
-                <div class="loading">데이터 로딩 중</div>
+                <div class="loading">INITIALIZING</div>
             </div>
         </div>
 
         <!-- Funding Rate Chart -->
         <div class="chart-container">
-            <h2>📈 펀딩 수수료 추이</h2>
+            <div class="panel-header">FUNDING RATE TRENDS</div>
             <canvas id="fundingChart"></canvas>
         </div>
 
         <!-- Filters -->
         <div class="filters">
             <div class="filter-group">
-                <label class="filter-label">거래소 필터</label>
+                <label class="filter-label">Exchange</label>
                 <select id="exchangeFilter">
-                    <option value="all">전체</option>
-                    <option value="gateio">GateIO</option>
-                    <option value="bitget">Bitget</option>
+                    <option value="all">ALL</option>
+                    <option value="gateio">GATE.IO</option>
+                    <option value="bitget">BITGET</option>
                 </select>
             </div>
             <div class="filter-group">
-                <label class="filter-label">토큰 검색</label>
-                <input type="text" id="symbolSearch" placeholder="예: AAPL, TSLA">
+                <label class="filter-label">Search Token</label>
+                <input type="text" id="symbolSearch" placeholder="AAPL, TSLA...">
             </div>
         </div>
 
         <!-- Funding Rates Table -->
-        <h2>💰 실시간 펀딩 수수료</h2>
-        <div class="table-container">
-            <div id="content">
-                <div class="loading">서버 연결 중</div>
+        <div class="panel">
+            <div class="panel-header">FUNDING RATES MATRIX</div>
+            <div class="table-container">
+                <div id="content">
+                    <div class="loading">LOADING DATA</div>
+                </div>
             </div>
         </div>
 
         <div class="last-update" id="lastUpdate"></div>
 
         <!-- Data Verification Section -->
-        <h2>🔍 데이터 검증</h2>
-        <div class="filters">
-            <div class="filter-group">
-                <label class="filter-label">거래소</label>
-                <select id="verifyExchange">
-                    <option value="">선택</option>
-                    <option value="gateio">Gate.io</option>
-                    <option value="bitget">Bitget</option>
-                </select>
+        <div class="panel">
+            <div class="panel-header">DATA VERIFICATION</div>
+            <div class="filters">
+                <div class="filter-group">
+                    <label class="filter-label">Exchange</label>
+                    <select id="verifyExchange">
+                        <option value="">SELECT</option>
+                        <option value="gateio">GATE.IO</option>
+                        <option value="bitget">BITGET</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Token</label>
+                    <select id="verifySymbol">
+                        <option value="">SELECT</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Period</label>
+                    <select id="verifyPeriod">
+                        <option value="7">7 DAYS</option>
+                        <option value="30">30 DAYS</option>
+                    </select>
+                </div>
+                <button id="verifyButton"><span>VERIFY</span></button>
             </div>
-            <div class="filter-group">
-                <label class="filter-label">토큰</label>
-                <select id="verifySymbol">
-                    <option value="">선택</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label class="filter-label">기간</label>
-                <select id="verifyPeriod">
-                    <option value="7">7일</option>
-                    <option value="30">30일</option>
-                </select>
-            </div>
-            <button id="verifyButton" style="padding: 10px 20px; background: #00d4aa; color: #0a0e27; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; margin-top: 20px;">조회</button>
-        </div>
 
-        <div class="table-container" id="verificationTable" style="margin-top: 20px; display: none;">
-            <div id="verificationContent"></div>
+            <div class="table-container" id="verificationTable" style="margin-top: 2rem; display: none;">
+                <div id="verificationContent"></div>
+            </div>
         </div>
     </div>
 
@@ -479,7 +831,7 @@
         let historyData = [];
         const MAX_HISTORY = 50;
 
-        // Initialize Chart
+        // Initialize Chart with cyberpunk styling
         function initChart() {
             const ctx = document.getElementById('fundingChart').getContext('2d');
             chartInstance = new Chart(ctx, {
@@ -494,23 +846,41 @@
                     plugins: {
                         legend: {
                             labels: {
-                                color: '#8b92a7'
+                                color: '#00f0ff',
+                                font: {
+                                    family: "'JetBrains Mono', monospace",
+                                    size: 11
+                                }
                             }
                         }
                     },
                     scales: {
                         x: {
-                            ticks: { color: '#8b92a7' },
-                            grid: { color: '#1e2a47' }
+                            ticks: {
+                                color: 'rgba(0, 240, 255, 0.6)',
+                                font: {
+                                    family: "'JetBrains Mono', monospace"
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 240, 255, 0.1)',
+                                lineWidth: 1
+                            }
                         },
                         y: {
                             ticks: {
-                                color: '#8b92a7',
+                                color: 'rgba(0, 240, 255, 0.6)',
+                                font: {
+                                    family: "'JetBrains Mono', monospace"
+                                },
                                 callback: function(value) {
                                     return (value * 100).toFixed(3) + '%';
                                 }
                             },
-                            grid: { color: '#1e2a47' }
+                            grid: {
+                                color: 'rgba(0, 240, 255, 0.1)',
+                                lineWidth: 1
+                            }
                         }
                     }
                 }
@@ -522,10 +892,8 @@
             const upperSymbol = symbol.toUpperCase();
 
             if (exchange === 'gateio') {
-                // GateIO Perpetual Futures format
                 return `https://www.gate.io/futures/USDT/${upperSymbol}X_USDT`;
             } else if (exchange === 'bitget') {
-                // Bitget format
                 return `https://www.bitget.com/futures/usdt/${upperSymbol}USDT`;
             }
             return '#';
@@ -536,7 +904,7 @@
 
             ws.onopen = () => {
                 console.log('Connected to server');
-                document.getElementById('status').textContent = '실시간';
+                document.getElementById('status').textContent = 'LIVE';
                 document.getElementById('status').classList.add('live');
             };
 
@@ -549,7 +917,7 @@
 
             ws.onclose = () => {
                 console.log('Disconnected from server');
-                document.getElementById('status').textContent = '연결 끊김';
+                document.getElementById('status').textContent = 'DISCONNECTED';
                 document.getElementById('status').classList.remove('live');
                 setTimeout(connect, reconnectInterval);
             };
@@ -590,7 +958,7 @@
             const symbols = Array.from(symbolsSet).slice(0, 6);
 
             const colors = [
-                '#00d4aa', '#ff4d6d', '#4d9fff', '#ffa64d', '#9d4dff', '#ff4dbb'
+                '#00f0ff', '#ff0066', '#00ff88', '#ffaa00', '#ff00ff', '#ffff00'
             ];
 
             const datasets = symbols.map((symbol, idx) => {
@@ -606,7 +974,10 @@
                     data: data,
                     borderColor: colors[idx % colors.length],
                     backgroundColor: 'transparent',
-                    tension: 0.3
+                    borderWidth: 2,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointHoverRadius: 6
                 };
             });
 
@@ -637,7 +1008,7 @@
             const container = document.getElementById('opportunities');
 
             if (opportunities.length === 0) {
-                container.innerHTML = '<div class="no-opportunities">현재 차익거래 기회가 없습니다</div>';
+                container.innerHTML = '<div class="no-opportunities">NO OPPORTUNITIES DETECTED</div>';
                 return;
             }
 
@@ -707,12 +1078,12 @@
                 <table>
                     <thead>
                         <tr>
-                            <th rowspan="2">토큰</th>
+                            <th rowspan="2">TOKEN</th>
                             ${exchanges.map(ex => `<th colspan="3">${ex.toUpperCase()}</th>`).join('')}
-                            <th rowspan="2">스프레드</th>
+                            <th rowspan="2">SPREAD</th>
                         </tr>
                         <tr>
-                            ${exchanges.map(() => `<th style="font-size: 11px;">현재</th><th style="font-size: 11px;">7일</th><th style="font-size: 11px;">30일</th>`).join('')}
+                            ${exchanges.map(() => `<th style="font-size: 0.65rem;">CURRENT</th><th style="font-size: 0.65rem;">7D</th><th style="font-size: 0.65rem;">30D</th>`).join('')}
                         </tr>
                     </thead>
                     <tbody>
@@ -754,21 +1125,21 @@
                         if (rateObj.cumulativeFunding7d !== undefined) {
                             const cum7d = (rateObj.cumulativeFunding7d * 100).toFixed(3);
                             const cum7dClass = rateObj.cumulativeFunding7d > 0 ? 'positive' : rateObj.cumulativeFunding7d < 0 ? 'negative' : 'neutral';
-                            html += `<td><span class="rate ${cum7dClass}" style="font-size: 12px;">${cum7d}%</span></td>`;
+                            html += `<td><span class="rate ${cum7dClass}" style="font-size: 0.75rem;">${cum7d}%</span></td>`;
                         } else {
-                            html += `<td class="no-data" style="font-size: 11px;">-</td>`;
+                            html += `<td class="no-data">--</td>`;
                         }
 
                         // 30-day cumulative
                         if (rateObj.cumulativeFunding30d !== undefined) {
                             const cum30d = (rateObj.cumulativeFunding30d * 100).toFixed(3);
                             const cum30dClass = rateObj.cumulativeFunding30d > 0 ? 'positive' : rateObj.cumulativeFunding30d < 0 ? 'negative' : 'neutral';
-                            html += `<td><span class="rate ${cum30dClass}" style="font-size: 12px;">${cum30d}%</span></td>`;
+                            html += `<td><span class="rate ${cum30dClass}" style="font-size: 0.75rem;">${cum30d}%</span></td>`;
                         } else {
-                            html += `<td class="no-data" style="font-size: 11px;">-</td>`;
+                            html += `<td class="no-data">--</td>`;
                         }
                     } else {
-                        html += `<td class="no-data" colspan="3">-</td>`;
+                        html += `<td class="no-data" colspan="3">--</td>`;
                     }
                 });
 
@@ -785,7 +1156,7 @@
             // Update timestamp
             const date = new Date(timestamp);
             document.getElementById('lastUpdate').textContent =
-                `마지막 업데이트: ${date.toLocaleString('ko-KR')}`;
+                `LAST UPDATE: ${date.toLocaleString('ko-KR')}`;
         }
 
         // Populate verification symbol dropdown
@@ -799,7 +1170,7 @@
 
             const select = document.getElementById('verifySymbol');
             const currentValue = select.value;
-            select.innerHTML = '<option value="">선택</option>';
+            select.innerHTML = '<option value="">SELECT</option>';
 
             Array.from(symbolSet).sort().forEach(symbol => {
                 const option = document.createElement('option');
@@ -820,7 +1191,7 @@
             const period = document.getElementById('verifyPeriod').value;
 
             if (!exchange || !symbol || !currentData) {
-                alert('거래소와 토큰을 선택해주세요.');
+                alert('Please select exchange and token');
                 return;
             }
 
@@ -830,29 +1201,29 @@
             );
 
             if (!rateObj) {
-                alert('선택한 거래소/토큰의 데이터를 찾을 수 없습니다.');
+                alert('Data not found for selected exchange/token');
                 return;
             }
 
             const history = period === '7' ? rateObj.history7d : rateObj.history30d;
 
             if (!history || history.length === 0) {
-                alert(`${period}일 히스토리 데이터가 없습니다.`);
+                alert(`No ${period}-day history data available`);
                 return;
             }
 
             // Build verification table
             let html = `
-                <h3 style="color: #00d4aa; margin-bottom: 15px;">
-                    ${exchange.toUpperCase()} - ${symbol.toUpperCase()} (${period}일)
-                </h3>
+                <div class="panel-header">
+                    ${exchange.toUpperCase()} - ${symbol.toUpperCase()} (${period} DAYS)
+                </div>
                 <table>
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th>시간</th>
-                            <th>펀딩 레이트</th>
-                            <th>누적 합계</th>
+                            <th>TIMESTAMP</th>
+                            <th>FUNDING RATE</th>
+                            <th>CUMULATIVE</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -870,7 +1241,7 @@
                 html += `
                     <tr>
                         <td>${index + 1}</td>
-                        <td style="font-size: 12px;">${date.toLocaleString('ko-KR')}</td>
+                        <td style="font-size: 0.75rem;">${date.toLocaleString('ko-KR')}</td>
                         <td><span class="rate ${rateClass}">${ratePercent}%</span></td>
                         <td><span class="rate ${cumulativeClass}" style="font-weight: 700;">${cumulativePercent}%</span></td>
                     </tr>
@@ -882,11 +1253,11 @@
 
             html += `
                     </tbody>
-                    <tfoot style="background: #1e2a47; font-weight: 700;">
+                    <tfoot style="background: rgba(0, 0, 0, 0.5); font-weight: 700;">
                         <tr>
-                            <td colspan="2">최종 합계 (${history.length}개 항목)</td>
-                            <td>-</td>
-                            <td><span style="color: #00d4aa; font-size: 16px;">${finalPercent}%</span></td>
+                            <td colspan="2">TOTAL (${history.length} entries)</td>
+                            <td>--</td>
+                            <td><span style="color: var(--neon-cyan); font-size: 1.1rem;">${finalPercent}%</span></td>
                         </tr>
                     </tfoot>
                 </table>
