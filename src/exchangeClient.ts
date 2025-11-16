@@ -58,6 +58,15 @@ export class ExchangeClient {
       );
     }
 
+    // Bitget uses standard format (AAPL/USDT:USDT)
+    if (exchange === 'bitget') {
+      patterns.push(
+        `${upperStock}/USDT:USDT`,
+        `${upperStock}USDT`,
+        `${upperStock}/USDT`
+      );
+    }
+
     // Bybit uses "1000" suffix for some stocks
     if (exchange === 'bybit') {
       patterns.push(
@@ -69,35 +78,49 @@ export class ExchangeClient {
     }
 
     // Standard patterns for other exchanges
-    patterns.push(
-      `${upperStock}/USDT:USDT`,
-      `${upperStock}USDT`,
-      `${upperStock}/USDT`,
-      `${upperStock}_USDT:USDT`,
-      `${upperStock}/USD:USD`,
-      `${upperStock}USD`,
-      `${upperStock}/USD`
-    );
+    if (exchange !== 'gateio' && exchange !== 'bitget' && exchange !== 'bybit') {
+      patterns.push(
+        `${upperStock}/USDT:USDT`,
+        `${upperStock}USDT`,
+        `${upperStock}/USDT`,
+        `${upperStock}_USDT:USDT`,
+        `${upperStock}/USD:USD`,
+        `${upperStock}USD`,
+        `${upperStock}/USD`
+      );
+    }
 
     // Debug: Log available markets containing the stock symbol
     const relevantMarkets = Object.keys(markets).filter(m =>
       m.toUpperCase().includes(upperStock)
     );
-    if (relevantMarkets.length > 0 && exchange === 'bybit') {
-      console.log(`\n[DEBUG] ${exchange} markets containing ${upperStock}:`, relevantMarkets);
-    }
 
     for (const pattern of patterns) {
-      if (markets[pattern] && markets[pattern].swap && markets[pattern].active) {
-        console.log(`✓ Found ${exchange} symbol: ${pattern} for ${stock}`);
-        this.symbolCache.set(cacheKey, pattern);
-        return pattern;
+      const market = markets[pattern];
+
+      if (market) {
+        // Check if it's a swap/futures market
+        const isSwapOrFutures = market.swap || market.future || market.type === 'swap' || market.type === 'future' || market.contract;
+
+        if (isSwapOrFutures) {
+          if (!market.active) {
+            // Market exists but is inactive (e.g., weekend trading suspension for stocks)
+            console.log(`⚠️  ${exchange}: ${pattern} is INACTIVE (possibly weekend/off-hours), but will attempt to fetch last funding rate`);
+          } else {
+            console.log(`✓ Found ${exchange} symbol: ${pattern} for ${stock}`);
+          }
+          this.symbolCache.set(cacheKey, pattern);
+          return pattern;
+        }
       }
     }
 
     // If not found, log for debugging
     if (relevantMarkets.length > 0) {
-      console.log(`⚠️  ${exchange}: Could not match ${stock} with patterns. Available: ${relevantMarkets.slice(0, 3).join(', ')}`);
+      const activeMarkets = relevantMarkets.filter(m => markets[m]?.active);
+      if (activeMarkets.length > 0) {
+        console.log(`⚠️  ${exchange}: Could not match ${stock} with patterns. Available active markets: ${activeMarkets.slice(0, 3).join(', ')}`);
+      }
     }
 
     this.symbolCache.set(cacheKey, null);

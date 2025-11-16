@@ -755,12 +755,6 @@
             </div>
         </div>
 
-        <!-- Funding Rate Chart -->
-        <div class="chart-container">
-            <div class="panel-header">FUNDING RATE TRENDS</div>
-            <canvas id="fundingChart"></canvas>
-        </div>
-
         <!-- Filters -->
         <div class="filters">
             <div class="filter-group">
@@ -827,65 +821,6 @@
         let ws;
         let reconnectInterval = 3000;
         let currentData = null;
-        let chartInstance = null;
-        let historyData = [];
-        const MAX_HISTORY = 50;
-
-        // Initialize Chart with cyberpunk styling
-        function initChart() {
-            const ctx = document.getElementById('fundingChart').getContext('2d');
-            chartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: []
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: '#00f0ff',
-                                font: {
-                                    family: "'JetBrains Mono', monospace",
-                                    size: 11
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            ticks: {
-                                color: 'rgba(0, 240, 255, 0.6)',
-                                font: {
-                                    family: "'JetBrains Mono', monospace"
-                                }
-                            },
-                            grid: {
-                                color: 'rgba(0, 240, 255, 0.1)',
-                                lineWidth: 1
-                            }
-                        },
-                        y: {
-                            ticks: {
-                                color: 'rgba(0, 240, 255, 0.6)',
-                                font: {
-                                    family: "'JetBrains Mono', monospace"
-                                },
-                                callback: function(value) {
-                                    return (value * 100).toFixed(3) + '%';
-                                }
-                            },
-                            grid: {
-                                color: 'rgba(0, 240, 255, 0.1)',
-                                lineWidth: 1
-                            }
-                        }
-                    }
-                }
-            });
-        }
 
         // Get exchange URL for a symbol
         function getExchangeURL(exchange, symbol) {
@@ -912,7 +847,6 @@
                 const data = JSON.parse(event.data);
                 currentData = data;
                 updateDashboard(data);
-                updateHistory(data);
             };
 
             ws.onclose = () => {
@@ -925,65 +859,6 @@
             ws.onerror = (error) => {
                 console.error('WebSocket error:', error);
             };
-        }
-
-        function updateHistory(data) {
-            historyData.push({
-                timestamp: data.timestamp,
-                rates: data.fundingRates
-            });
-
-            if (historyData.length > MAX_HISTORY) {
-                historyData.shift();
-            }
-
-            updateChart();
-        }
-
-        function updateChart() {
-            if (!chartInstance || historyData.length === 0) return;
-
-            const labels = historyData.map(d =>
-                new Date(d.timestamp).toLocaleTimeString('ko-KR', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                })
-            );
-
-            // Get top symbols by absolute funding rate
-            const symbolsSet = new Set();
-            historyData.forEach(d => {
-                d.rates.forEach(r => symbolsSet.add(r.symbol));
-            });
-            const symbols = Array.from(symbolsSet).slice(0, 6);
-
-            const colors = [
-                '#00f0ff', '#ff0066', '#00ff88', '#ffaa00', '#ff00ff', '#ffff00'
-            ];
-
-            const datasets = symbols.map((symbol, idx) => {
-                const data = historyData.map(d => {
-                    const rates = d.rates.filter(r => r.symbol === symbol);
-                    if (rates.length === 0) return null;
-                    const avg = rates.reduce((sum, r) => sum + r.fundingRate, 0) / rates.length;
-                    return avg;
-                });
-
-                return {
-                    label: symbol.toUpperCase(),
-                    data: data,
-                    borderColor: colors[idx % colors.length],
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    pointRadius: 3,
-                    pointHoverRadius: 6
-                };
-            });
-
-            chartInstance.data.labels = labels;
-            chartInstance.data.datasets = datasets;
-            chartInstance.update();
         }
 
         function updateStats(opportunities, fundingRates) {
@@ -1269,8 +1144,6 @@
 
         // Setup filters
         document.addEventListener('DOMContentLoaded', () => {
-            initChart();
-
             document.getElementById('exchangeFilter').addEventListener('change', () => {
                 if (currentData) updateDashboard(currentData);
             });
