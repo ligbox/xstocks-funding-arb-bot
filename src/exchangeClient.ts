@@ -1,5 +1,5 @@
 import * as ccxt from 'ccxt';
-import { FundingRate, ExchangeName, XStock, HistoryEntry } from './types';
+import { FundingRate, ExchangeName, XStock, HistoryEntry, EXCHANGE_FUNDING_INTERVALS } from './types';
 
 export class ExchangeClient {
   private exchanges: Map<ExchangeName, any>;
@@ -212,10 +212,17 @@ export class ExchangeClient {
         ? history30d.reduce((sum, entry) => sum + entry.fundingRate, 0)
         : undefined;
 
+      const actualFundingRate = fundingRate.fundingRate || 0;
+      const fundingInterval = EXCHANGE_FUNDING_INTERVALS[exchange];
+      // Normalize to 8-hour interval for fair comparison
+      const normalizedRate = actualFundingRate * (8 / fundingInterval);
+
       const result: FundingRate = {
         exchange,
         symbol: stock,
-        fundingRate: fundingRate.fundingRate || 0,
+        fundingRate: actualFundingRate,
+        fundingInterval,
+        normalizedRate,
         timestamp: fundingRate.timestamp || Date.now(),
         nextFundingTime: fundingRate.fundingTimestamp,
         cumulativeFunding7d,
